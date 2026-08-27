@@ -1,11 +1,17 @@
+import os
 import sqlite3
 from datetime import datetime, timedelta
 from flask_bcrypt import Bcrypt
 
 bcrypt = Bcrypt()
 
+# 데이터베이스 영속성 폴더 및 경로 동적 생성
+DB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
+os.makedirs(DB_DIR, exist_ok=True)
+DB_PATH = os.path.join(DB_DIR, 'room_bookings.db')
+
 def get_db_connection():
-    conn = sqlite3.connect('room_bookings.db')
+    conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
 

@@ -15,7 +15,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 5. 어플리케이션 소스 코드 전체 복사
 COPY . /app/
 
-# 6. Gunicorn 실행을 위한 수신 포트 지정 (5000번)
+# 6. 데이터베이스 영속성 저장을 위한 볼륨 정의
+VOLUME ["/app/data"]
+
+# 7. Gunicorn 실행을 위한 수신 포트 지정 (5000번)
 EXPOSE 5000
 
 # 7. 헬스체크 루틴 추가 (요청하신 조건 준수)

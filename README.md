@@ -80,6 +80,31 @@ python app.py
 ```
 서버가 성공적으로 실행되면 웹 브라우저를 열고 `http://127.0.0.1:5000/` 에 접속합니다. 자동으로 `http://127.0.0.1:5000/reserve/` 로 리다이렉트 되며 정돈된 강단 예약 시스템 메인이 표시됩니다.
 
+### 🐳 Docker 컨테이너 실행 및 볼륨 연결 (영속성 설정)
+SQLite 데이터베이스 파일은 어플리케이션 코드가 수정되거나 컨테이너가 교체되더라도 데이터를 유실하지 않도록 컨테이너 내부의 `/app/data` 디렉토리에 저장됩니다. 이 디렉토리를 호스트 스토리지와 바인딩하면 안전한 **영속성(Persistent Storage)**이 보장됩니다.
+
+#### 1) 도커 이미지 빌드
+```bash
+docker build -t church-reserve .
+```
+
+#### 2) 영속성 볼륨을 연결하여 컨테이너 실행 (호스트의 특정 디렉토리 연결)
+* **Linux / macOS:**
+  ```bash
+  docker run -d -p 5000:5000 \
+    -v $(pwd)/data:/app/data \
+    --name church-booking-app \
+    church-reserve
+  ```
+* **Windows (PowerShell):**
+  ```powershell
+  docker run -d -p 5000:5000 `
+    -v ${PWD}/data:/app/data `
+    --name church-booking-app `
+    church-reserve
+  ```
+이렇게 마운트하면 호스트 기기의 로컬 `./data` 디렉토리 아래에 `room_bookings.db` 파일이 동기화/유지되므로 안전하게 데이터를 영구 보존할 수 있습니다.
+
 ---
 
 ## 📖 6. 사용자 설명서 (User Guide)
