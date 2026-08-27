@@ -1,0 +1,126 @@
+/* 기본 리셋 및 본문 테마 */
+body {
+    background-color: #f4f6f9;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans KR", sans-serif;
+    color: #333333;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+/* 네비게이션 & 브랜드 */
+header {
+    border-bottom: 1px solid rgba(0,0,0,0.08);
+}
+.text-primary {
+    color: #2b5c8f !important; /* 거룩하고 안정적인 인디고 블루 */
+}
+.btn-primary, .bg-primary {
+    background-color: #2b5c8f !important;
+    border-color: #2b5c8f !important;
+}
+.btn-primary:hover {
+    background-color: #1e436d !important;
+    border-color: #1e436d !important;
+}
+.btn-outline-primary {
+    color: #2b5c8f !important;
+    border-color: #2b5c8f !important;
+}
+.btn-outline-primary:hover, .btn-outline-primary.active {
+    background-color: #2b5c8f !important;
+    color: white !important;
+}
+
+/* 알림 및 경고 */
+.alert {
+    border-radius: 8px;
+    font-size: 0.95rem;
+}
+
+/* 카드 컴포넌트 */
+.card {
+    border-radius: 12px;
+    overflow: hidden;
+    background-color: #ffffff;
+}
+
+/* 달력 탭 UI */
+.custom-tabs .nav-link {
+    border: none;
+    background-color: #e9ecef;
+    color: #495057;
+    margin: 0 4px;
+    border-radius: 8px 8px 0 0;
+    transition: all 0.2s ease;
+    padding: 12px 16px;
+    font-size: 0.95rem;
+}
+.custom-tabs .nav-link:hover {
+    background-color: #dee2e6;
+    color: #2b5c8f;
+}
+.custom-tabs .nav-link.active {
+    background-color: #ffffff;
+    border-top: 3px solid #2b5c8f;
+    box-shadow: 0 -2px 6px rgba(0,0,0,0.05);
+}
+
+/* 달력 테이블 스타일 */
+.calendar-table th {
+    padding: 12px 8px;
+    font-weight: 600;
+}
+.calendar-table td {
+    vertical-align: middle;
+}
+.cell-height {
+    height: 90px;
+    min-width: 140px;
+    background-color: #fafbfc;
+}
+.calendar-table tbody tr:hover td {
+    background-color: #f1f3f5;
+}
+
+/* 예약 슬롯 내역 카드 */
+.booking-card {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    transition: transform 0.2s, box-shadow 0.2s;
+    background-color: #fff5f5 !important; /* 연한 적색 계열 */
+    border-left-color: #e63946 !important;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+.booking-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+/* 빈 시간대 예약 가능 버튼 */
+.empty-slot-btn {
+    border: 1px dashed #ced4da;
+    background-color: #ffffff;
+    transition: all 0.2s;
+    padding: 10px 4px;
+}
+.empty-slot-btn:hover {
+    border-color: #2a9d8f;
+    background-color: rgba(42, 157, 143, 0.08);
+    color: #2a9d8f !important;
+}
+
+/* 모달 애니메이션 및 미세조정 */
+.modal-content {
+    border-radius: 14px;
+    border: none;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+}
+.modal-header {
+    border-bottom: 1px solid rgba(0,0,0,0.08);
+}
+.modal-footer {
+    border-top: 1px solid rgba(0,0,0,0.08);
+}

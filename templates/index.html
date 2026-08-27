@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>교회 강단 예약시스템 - 메인</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+</head>
+<body>
+    <!-- 상단 네비게이션 헤더 -->
+    <header class="py-3 mb-4 border-bottom bg-white shadow-sm">
+        <div class="container d-flex flex-wrap justify-content-between align-items-center">
+            <a href="{{ url_for('reserve.index') }}" class="d-flex align-items-center text-dark text-decoration-none">
+                <span class="fs-4 fw-bold text-primary"><i class="bi bi-house-heart-fill me-2"></i>교회 강단 예약시스템</span>
+            </a>
+            <ul class="nav nav-pills">
+                <li class="nav-item"><a href="{{ url_for('reserve.index') }}" class="nav-link active me-2"><i class="bi bi-calendar3 me-1"></i>강단 예약 현황</a></li>
+                <li class="nav-item"><a href="{{ url_for('reserve.book') }}" class="nav-link btn-outline-primary me-2"><i class="bi bi-pencil-square me-1"></i>예약 신청</a></li>
+                <li class="nav-item"><a href="{{ url_for('reserve.report') }}" class="nav-link btn-outline-secondary me-2"><i class="bi bi-journal-text me-1"></i>예약 리포트</a></li>
+                <li class="nav-item"><a href="{{ url_for('reserve.admin_rooms') }}" class="nav-link btn-outline-dark"><i class="bi bi-gear-fill me-1"></i>강단 관리</a></li>
+            </ul>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- 상단 알림 메시지 -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- 시스템 안내판 -->
+        <div class="card mb-4 border-start border-4 border-primary shadow-sm bg-light">
+            <div class="card-body py-3">
+                <h5 class="card-title text-primary"><i class="bi bi-info-circle-fill me-2"></i>강단 사용 및 예약 안내</h5>
+                <p class="card-text text-muted mb-0" style="font-size: 0.9rem;">
+                    ⛪ 강단은 주일 예배와 기도를 준비하는 거룩한 성소입니다. 상호 배려하며 정해진 시간을 준수해 주시기 바랍니다.<br>
+                    💡 <strong>예약 방법:</strong> 아래 달력에서 원하시는 강단을 탭으로 선택한 후, 비어 있는 시간대의 <strong>[+ 예약 가능]</strong> 버튼을 클릭하면 빠르게 예약을 작성할 수 있습니다.
+                </p>
+            </div>
+        </div>
+
+        <!-- 캘린더 페이지네이션 & 컨트롤 -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <a href="{{ url_for('reserve.index', room_id=active_room_id, week_offset=week_offset-1) }}" 
+                   class="btn btn-outline-secondary {% if week_offset <= 0 %}disabled{% endif %} shadow-sm">
+                    <i class="bi bi-chevron-left me-1"></i>이전 주
+                </a>
+                <a href="{{ url_for('reserve.index', room_id=active_room_id) }}" 
+                   class="btn btn-outline-primary mx-1 {% if week_offset == 0 %}active{% endif %} shadow-sm">
+                    오늘이 속한 주
+                </a>
+                <a href="{{ url_for('reserve.index', room_id=active_room_id, week_offset=week_offset+1) }}" 
+                   class="btn btn-outline-secondary {% if week_offset >= 16 %}disabled{% endif %} shadow-sm">
+                    다음 주<i class="bi bi-chevron-right ms-1"></i>
+                </a>
+            </div>
+            
+            <div class="text-muted fw-bold">
+                {% if week_dates %}
+                    {{ week_dates[0].strftime('%Y년 %m월 %d일') }} ~ {{ week_dates[-1].strftime('%m월 %d일') }}
+                {% endif %}
+            </div>
+            
+            <div>
+                <a href="{{ url_for('reserve.book', room_id=active_room_id) }}" class="btn btn-primary shadow-sm fw-bold">
+                    <i class="bi bi-calendar-plus me-1"></i>개별 예약하기
+                </a>
+            </div>
+        </div>
+
+        <!-- 강단 탭 UI (동적 생성) -->
+        {% if rooms %}
+            <ul class="nav nav-tabs nav-fill mb-3 shadow-sm custom-tabs">
+                {% for room in rooms %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if room.id == active_room_id %}active fw-bold text-primary{% else %}text-muted{% endif %}" 
+                           href="{{ url_for('reserve.index', room_id=room.id, week_offset=week_offset) }}">
+                            <i class="bi bi-grid-1x2 me-1"></i>{{ room.name }}
+                        </a>
+                    </li>
+                {% endfor %}
+            </ul>
+
+            <!-- 활성화된 강단의 캘린더 렌더링 -->
+            <div class="card shadow-sm border-0 mb-5">
+                <div class="card-header bg-primary text-white py-3">
+                    <h4 class="mb-0 fs-5"><i class="bi bi-calendar-check me-2"></i>현재 조회 중인 강단: <strong>
+                        {% for room in rooms %}
+                            {% if room.id == active_room_id %}{{ room.name }}{% endif %}
+                        {% endfor %}
+                    </strong></h4>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover table-bordered mb-0 align-middle calendar-table text-center">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 100px;">시간 슬롯</th>
+                                {% for date in week_dates %}
+                                    <th class="{% if date.weekday() == 5 %}text-primary{% elif date.weekday() == 6 %}text-danger{% endif %}">
+                                        <div style="font-size: 0.85rem;" class="text-muted">{{ date.strftime('%Y-%m-%d') }}</div>
+                                        <div class="fs-6 fw-bold">
+                                            {{ ['월', '화', '수', '목', '금', '토', '일'][date.weekday()] }}요일
+                                        </div>
+                                    </th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for slot in time_slots %}
+                                <tr>
+                                    <td class="table-light fw-bold text-secondary" style="font-size: 0.9rem;">
+                                        {{ slot }}
+                                    </td>
+                                    {% for date in week_dates %}
+                                        {% set date_str = date.strftime('%Y-%m-%d') %}
+                                        {% set booking = calendar[active_room_id][date_str][slot] %}
+                                        <td class="p-2 cell-height">
+                                            {% if booking %}
+                                                <div class="booking-card shadow-sm border-start border-3 border-danger bg-danger bg-opacity-10 p-2 rounded">
+                                                    <div class="fw-bold text-dark text-truncate" title="{{ booking.user_name }}" style="font-size: 0.9rem;">
+                                                        <i class="bi bi-person-fill text-secondary me-1"></i>{{ booking.user_name }}
+                                                    </div>
+                                                    <div class="text-muted text-truncate" title="{{ booking.purpose or '예약 목적 없음' }}" style="font-size: 0.75rem; margin-top: 2px;">
+                                                        <i class="bi bi-tag-fill text-muted me-1"></i>{{ booking.purpose or '연습 및 사용' }}
+                                                    </div>
+                                                    <div class="mt-2 text-end">
+                                                        <a href="{{ url_for('reserve.cancel', booking_id=booking.id) }}" 
+                                                           class="btn btn-sm btn-outline-danger py-0 px-1 border-0" 
+                                                           style="font-size: 0.75rem; border-radius: 4px;"
+                                                           title="예약 취소">
+                                                            <i class="bi bi-trash3-fill"></i>취소
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            {% else %}
+                                                <a href="{{ url_for('reserve.book', room_id=active_room_id, date=date_str, start_time=slot) }}" 
+                                                   class="empty-slot-btn text-decoration-none d-block py-2 text-muted rounded border border-dashed text-center">
+                                                    <span style="font-size: 0.8rem;"><i class="bi bi-plus-circle-fill text-success opacity-75 me-1"></i>예약 가능</span>
+                                                </a>
+                                            {% endif %}
+                                        </td>
+                                    {% endfor %}
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {% else %}
+            <!-- 등록된 강단이 없을 때 -->
+            <div class="text-center py-5 shadow-sm bg-white rounded border mb-5">
+                <i class="bi bi-building-exclamation text-warning display-1"></i>
+                <h3 class="mt-3">등록된 강단이 없습니다</h3>
+                <p class="text-muted">강단 관리 메뉴에서 예배실 및 강단을 먼저 생성해주세요.</p>
+                <a href="{{ url_for('reserve.admin_rooms') }}" class="btn btn-primary mt-2">
+                    <i class="bi bi-plus-circle me-1"></i>강단 등록하러 가기
+                </a>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- 하단 푸터 -->
+    <footer class="bg-dark text-white-50 text-center py-4 mt-auto">
+        <div class="container">
+            <p class="mb-0">© 2026 교회 강단 예약시스템. All Rights Reserved.</p>
+            <small class="opacity-50">성도님들의 섬김과 기도로 세워지는 거룩한 공간입니다.</small>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
