@@ -25,11 +25,13 @@ class ChurchBookingSystemTests(unittest.TestCase):
 
     def test_reserve_book_loads_and_presets(self):
         """예약 신청서 로딩 및 쿼리 파라미터 프리셋 바인딩 검증"""
-        response = self.client.get('/reserve/book?room_id=1&date=2026-08-27&start_time=10:00')
+        import datetime
+        today_str = datetime.date.today().strftime('%Y-%m-%d')
+        response = self.client.get(f'/reserve/book?room_id=1&date={today_str}&start_time=10:00')
         self.assertEqual(response.status_code, 200)
         content = response.data.decode('utf-8')
         self.assertIn('예약 신청서', content)
-        self.assertIn('value="2026-08-27"', content)
+        self.assertIn(f'value="{today_str}"', content)
 
     def test_reserve_report_loads(self):
         """예약 리포트 페이지가 정상 로드되는지 검증"""
@@ -72,10 +74,12 @@ class ChurchBookingSystemTests(unittest.TestCase):
 
     def test_room_booking_flow(self):
         """강단 예약 생성 및 확인, 취소 전 과정 테스트"""
+        import datetime
+        today_str = datetime.date.today().strftime('%Y-%m-%d')
         # 1. 예약하기 시뮬레이션
         response = self.client.post('/reserve/book', data={
             'room_id': 1,
-            'date': '2026-08-27',
+            'date': today_str,
             'start_time': '09:00',
             'end_time': '10:00',
             'user_name': '테스트 성도',
