@@ -175,6 +175,48 @@ class ChurchBookingSystemTests(unittest.TestCase):
         expected_slots = [('2026-09-05', '09:00'), ('2026-09-05', '09:30'), ('2026-09-05', '10:00')]
         self.assertEqual(slots, expected_slots)
 
+    def test_ics_recurring_events(self):
+        """ICS 반복 일정 (RRULE & EXDATE) 처리 및 한국어 시간대 보정 파싱 검증"""
+        from app import parse_ics
+        import datetime
+
+        # 카카오톡 캘린더에서 제공하는 실제 recurrent vevent 형식
+        mock_ics = (
+            "BEGIN:VCALENDAR\n"
+            "BEGIN:VEVENT\n"
+            "DTSTAMP:20260905T054224Z\n"
+            "DTSTART;TZID=Asia/Seoul:20251130T130000\n"
+            "DTEND;TZID=Asia/Seoul:20251130T150000\n"
+            "SUMMARY:별관5층) 유초등부_고정미\n"
+            "UID:6926ef836ce66045a3ec5dfd@kakao.com\n"
+            "TZID:Asia/Seoul\n"
+            "RRULE:FREQ=WEEKLY;WKST=MO;UNTIL=20251221T040000Z\n"
+            "EXDATE:20251214T040000Z\n"
+            "END:VEVENT\n"
+            "END:VCALENDAR"
+        )
+
+        events = parse_ics(mock_ics)
+        
+        # 2025-11-30은 일요일, 주간 주기로 2025-12-21 13:00 KST까지 진행.
+        # 발생 가능한 후보일: 11-30, 12-07, 12-14, 12-21
+        # 하지만 12-14는 EXDATE에 해당하므로 제외되어야 함.
+        # 따라서 총 3개의 이벤트가 생성되어야 함.
+        self.assertEqual(len(events), 3)
+
+        # 각 발생 일정 시작 시간 검증
+        # 1. 첫번째: 2025-11-30 13:00:00
+        self.assertEqual(events[0]['DTSTART'], datetime.datetime(2025, 11, 30, 13, 0))
+        self.assertEqual(events[0]['DTEND'], datetime.datetime(2025, 11, 30, 15, 0))
+
+        # 2. 두번째: 2025-12-07 13:00:00 (12-14는 EXDATE로 생략됨)
+        self.assertEqual(events[1]['DTSTART'], datetime.datetime(2025, 12, 7, 13, 0))
+        self.assertEqual(events[1]['DTEND'], datetime.datetime(2025, 12, 7, 15, 0))
+
+        # 3. 세번째: 2025-12-21 13:00:00 (UNTIL 경계값 확인)
+        self.assertEqual(events[2]['DTSTART'], datetime.datetime(2025, 12, 21, 13, 0))
+        self.assertEqual(events[2]['DTEND'], datetime.datetime(2025, 12, 21, 15, 0))
+
     def test_ics_caching_and_rate_limiting(self):
         """ICS 페칭 1분 레이트 리미트 및 캐시 보존 검증"""
         from unittest.mock import patch, MagicMock

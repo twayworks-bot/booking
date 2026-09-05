@@ -63,6 +63,103 @@ def parse_ics_datetime(val, params=None):
         return dt
     return None
 
+def add_months(dt, months):
+    month = dt.month - 1 + months
+    year = dt.year + month // 12
+    month = month % 12 + 1
+    day = min(dt.day, [31,
+        29 if (year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)) else 28,
+        31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month-1])
+    return dt.replace(year=year, month=month, day=day)
+
+def add_years(dt, years):
+    try:
+        return dt.replace(year=dt.year + years)
+    except ValueError:
+        # Handle leap year Feb 29
+        return dt.replace(year=dt.year + years, day=28)
+
+def expand_event_recurrence(event):
+    expanded = []
+    rrule_str = event.get("RRULE", "")
+    if not rrule_str:
+        return [event]
+        
+    rrule_parts = {}
+    for part in rrule_str.split(";"):
+        if "=" in part:
+            rk, pv = part.split("=", 1)
+            rrule_parts[rk.upper().strip()] = pv.strip()
+            
+    freq = rrule_parts.get("FREQ", "").upper()
+    if not freq:
+        return [event]
+        
+    interval = int(rrule_parts.get("INTERVAL", 1))
+    
+    until_dt = None
+    if "UNTIL" in rrule_parts:
+        until_dt = parse_ics_datetime(rrule_parts["UNTIL"])
+        
+    count = None
+    if "COUNT" in rrule_parts:
+        try:
+            count = int(rrule_parts["COUNT"])
+        except ValueError:
+            pass
+            
+    exdates = event.get("EXDATE", [])
+    
+    start_dt = event["DTSTART"]
+    end_dt = event["DTEND"]
+    duration = end_dt - start_dt
+    
+    current_start = start_dt
+    occurrences_count = 0
+    max_occurrences = 500
+    
+    while True:
+        if count is not None and occurrences_count >= count:
+            break
+        if until_dt is not None and current_start > until_dt:
+            break
+        if occurrences_count >= max_occurrences:
+            break
+            
+        # Check exclusion
+        is_excluded = False
+        for ex_dt in exdates:
+            if ex_dt == current_start:
+                is_excluded = True
+                break
+            if ex_dt.date() == current_start.date() and (ex_dt.time() == datetime.min.time() or (ex_dt.hour == 0 and ex_dt.minute == 0)):
+                is_excluded = True
+                break
+                
+        if not is_excluded:
+            current_end = current_start + duration
+            expanded.append({
+                "SUMMARY": event["SUMMARY"],
+                "DTSTART": current_start,
+                "DTEND": current_end
+            })
+            occurrences_count += 1
+            
+        # Move to next occurrence
+        if freq == "DAILY":
+            current_start += timedelta(days=interval)
+        elif freq == "WEEKLY":
+            current_start += timedelta(days=7 * interval)
+        elif freq == "MONTHLY":
+            current_start = add_months(current_start, interval)
+        elif freq == "YEARLY":
+            current_start = add_years(current_start, interval)
+        else:
+            # Unsupported frequency, stop to avoid infinite loops
+            break
+            
+    return expanded
+
 def parse_ics(ics_text):
     lines = []
     current_line = ""
@@ -101,7 +198,11 @@ def parse_ics(ics_text):
             current_event = {}
         elif name == "END" and val.upper().strip() == "VEVENT":
             if current_event and "SUMMARY" in current_event and "DTSTART" in current_event and "DTEND" in current_event:
-                events.append(current_event)
+                if "RRULE" in current_event:
+                    expanded = expand_event_recurrence(current_event)
+                    events.extend(expanded)
+                else:
+                    events.append(current_event)
             current_event = None
         elif current_event is not None:
             if name == "SUMMARY":
@@ -115,6 +216,15 @@ def parse_ics(ics_text):
                 dt = parse_ics_datetime(val, params)
                 if dt:
                     current_event["DTEND"] = dt
+            elif name == "RRULE":
+                current_event["RRULE"] = val.strip()
+            elif name == "EXDATE":
+                if "EXDATE" not in current_event:
+                    current_event["EXDATE"] = []
+                for part in val.split(","):
+                    ex_dt = parse_ics_datetime(part.strip(), params)
+                    if ex_dt:
+                        current_event["EXDATE"].append(ex_dt)
                         
     return events
 
