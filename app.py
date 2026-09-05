@@ -468,11 +468,18 @@ def cancel(booking_id):
 @reserve_bp.route('/report')
 def report():
     rooms = get_rooms()
+    # 오늘 자정(00:00:00) 기준 일자 문자열을 구합니다 (오늘을 포함한 이후 일정만 노출하기 위함)
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    
+    # 1. 일반 예약 조회 후 오늘(today)을 포함한 이후 일정만 필터링
     bookings = get_recent_bookings()
+    filtered_db_bookings = [b for b in bookings if b['date'] >= today_str]
+    
+    # 2. 카카오톡 연동 예약 중 오늘(today)을 포함한 이후 일정 가져오기 (내부적으로 이미 오늘 이후만 필터링)
     overlay_bookings = get_grouped_overlay_bookings()
     
-    # 일반 예약과 카카오톡 연동 예약을 병합합니다.
-    combined_bookings = list(bookings) + overlay_bookings
+    # 3. 일반 예약과 카카오톡 연동 예약을 병합합니다.
+    combined_bookings = filtered_db_bookings + overlay_bookings
     # 날짜와 시작시간 오름차순으로 정렬합니다.
     combined_bookings.sort(key=lambda x: (x['date'], x['start_time']))
     

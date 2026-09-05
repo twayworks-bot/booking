@@ -283,5 +283,28 @@ END:VCALENDAR"""
         room_id_none = get_room_id_by_prefix('일반집회) 특별 집회', rooms=[new_room])
         self.assertIsNone(room_id_none)
 
+    def test_report_filters_out_past_db_bookings(self):
+        """예약 리포트 페이지에서 오늘 자정 이전의 과거 일반 예약 데이터가 제외되는지 검증"""
+        import datetime
+        from database import book_room
+        
+        # 오늘 날짜와 어제 날짜 계산
+        today_str = datetime.date.today().strftime('%Y-%m-%d')
+        yesterday_str = (datetime.date.today() - datetime.timedelta(days=1)).strftime('%Y-%m-%d')
+        
+        # 1. 오늘 날짜로 예약 등록
+        book_room(room_id=1, date=today_str, time_slot='09:00', user_name='오늘 예약자', password='pwd', group_id='grp1', purpose='오늘목적')
+        # 2. 어제 날짜로 예약 등록
+        book_room(room_id=1, date=yesterday_str, time_slot='10:00', user_name='과거 예약자', password='pwd', group_id='grp2', purpose='과거목적')
+        
+        response = self.client.get('/reserve/report')
+        self.assertEqual(response.status_code, 200)
+        content = response.data.decode('utf-8')
+        
+        # 오늘 예약자는 리포트에 출력되어야 함
+        self.assertIn('오늘 예약자', content)
+        # 과거 예약자는 리포트에서 필터링되어 출력되지 않아야 함
+        self.assertNotIn('과거 예약자', content)
+
 if __name__ == '__main__':
     unittest.main()
