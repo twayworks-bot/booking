@@ -685,7 +685,7 @@ def admin_rooms():
                            default_ics=default_ics)
 
 # 헬스체크 API 엔드포인트 추가 (도커 컨테이너 검사용)
-@app.route('/planning/api/status')
+@app.route('/reserve/api/status')
 def health_check():
     return {'status': 'healthy'}, 200
 

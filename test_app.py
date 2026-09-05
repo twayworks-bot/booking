@@ -105,7 +105,7 @@ class ChurchBookingSystemTests(unittest.TestCase):
 
     def test_health_check(self):
         """도커 헬스체크 API 엔드포인트가 정상 작동하는지 검증"""
-        response = self.client.get('/planning/api/status')
+        response = self.client.get('/reserve/api/status')
         self.assertEqual(response.status_code, 200)
         self.assertIn('healthy', response.data.decode('utf-8'))
 
