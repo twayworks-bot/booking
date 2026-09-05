@@ -10,6 +10,15 @@ class ChurchBookingSystemTests(unittest.TestCase):
         self.client = app.test_client()
         init_db(force_reinit=True) # 매번 테스트 실행 시 테스트 환경 초기화
 
+        # Mock check_auth_session to return admin session by default in tests
+        from unittest.mock import patch
+        self.auth_patcher = patch('app.check_auth_session')
+        self.mock_auth = self.auth_patcher.start()
+        self.mock_auth.return_value = (True, True, {'id': 'admin-test-id', 'username': 'admin-test', 'name': 'Admin Test'})
+
+    def tearDown(self):
+        self.auth_patcher.stop()
+
     def test_root_redirect(self):
         """기본 경로 접속 시 /reserve/로 리다이렉션 되는지 검증"""
         response = self.client.get('/')

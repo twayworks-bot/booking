@@ -5,6 +5,7 @@ import uuid
 import os
 import json
 import requests
+import urllib.parse
 
 # .env 파일 수동 로드
 env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
@@ -315,6 +316,41 @@ def get_grouped_overlay_bookings():
     app.logger.info(f"[ICS Report] 리포트용 그룹화 완료: 총 {len(grouped_reports)}개의 연동 예약 생성")
     return grouped_reports
 
+def check_auth_session(session_id):
+    """
+    Checks if the session_id is a valid admin session by calling the auth service.
+    Returns (is_logged_in, is_manager, user_data)
+    """
+    if not session_id:
+        return False, False, None
+    
+    # Base URL for the common authentication service
+    auth_base_url = os.environ.get('AUTH_SYSTEM_URL', 'https://holyseeds.thewayworks.net/auth').rstrip('/')
+    verify_url = f"{auth_base_url}/api/verify-session"
+    
+    try:
+        # Call the keycloak app's session verification API
+        # Timeout 3s to avoid hanging
+        response = requests.get(verify_url, params={'session_id': session_id}, timeout=3)
+        if response.status_code == 200:
+            res_data = response.json()
+            if res_data.get('valid'):
+                return True, res_data.get('is_manager', False), res_data.get('user')
+    except Exception as e:
+        app.logger.error(f"[Auth Session Check] Error verifying session: {e}")
+        
+    return False, False, None
+
+@app.context_processor
+def inject_user_status():
+    session_id = request.cookies.get("auth_session")
+    is_logged_in, is_manager, user_data = check_auth_session(session_id)
+    return {
+        'is_logged_in': is_logged_in,
+        'is_manager': is_manager,
+        'current_user': user_data
+    }
+
 # 블루프린트 설정 (prefix: /reserve)
 reserve_bp = Blueprint('reserve', __name__, url_prefix='/reserve')
 
@@ -487,6 +523,17 @@ def report():
 
 @reserve_bp.route('/admin/rooms', methods=['GET', 'POST'])
 def admin_rooms():
+    # Check user session and privileges
+    session_id = request.cookies.get("auth_session")
+    is_logged_in, is_manager, _ = check_auth_session(session_id)
+    
+    if not is_logged_in or not is_manager:
+        auth_base_url = os.environ.get('AUTH_SYSTEM_URL', 'https://holyseeds.thewayworks.net/auth').rstrip('/')
+        login_url = f"{auth_base_url}/login"
+        current_path = request.path
+        flash('관리자 권한이 필요한 페이지입니다. 로그인 해주세요.', 'danger')
+        return redirect(f"{login_url}?error=관리자+권한이+필요한+페이지입니다.&redirect={urllib.parse.quote(current_path)}")
+
     if request.method == 'POST':
         action = request.form.get('action')
         if action == 'add':
