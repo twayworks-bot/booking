@@ -67,6 +67,11 @@ header {
 }
 
 /* 달력 테이블 스타일 */
+.calendar-table {
+    table-layout: fixed;
+    width: 100%;
+    min-width: 1000px; /* 하루 기입칸의 넓이가 고르게 보장되도록 테이블의 최소 넓이를 보장합니다 */
+}
 .calendar-table th {
     padding: 12px 8px;
     font-weight: 600;
@@ -76,7 +81,7 @@ header {
 }
 .cell-height {
     height: 90px;
-    min-width: 140px;
+    min-width: 120px;
     background-color: #fafbfc;
 }
 .calendar-table tbody tr:hover td {

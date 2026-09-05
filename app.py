@@ -130,17 +130,18 @@ def get_event_slots(start_dt, end_dt):
     return slots
 
 def get_room_prefixes(room):
-    # 1. 강단별 기본 등록 단어 정의
+    # 1. 강단별 기본 등록 단어 정의 (유연한 포함관계 검사 적용으로 명칭 변동 대비)
     defaults = []
-    if room['name'] == "대강당(비젼홀)":
+    name = room['name']
+    if "비젼홀" in name or "비전홀" in name or "비전횰" in name:
         defaults = ["비젼홀", "비전홀", "비전횰"]
-    elif room['name'] == "지하강당(드림홀)":
+    elif "드림홀" in name or "드림횰" in name:
         defaults = ["드림홀", "드림횰"]
-    elif room['name'] == "별관(미션홀)":
+    elif "별관" in name or "미션홀" in name or "별관5층" in name:
         defaults = ["별관5층", "별관오층", "별관5", "별관"]
     else:
         # 새로 추가된 신규 예배실의 경우 강단 이름 자체를 기본 단어로 삼습니다.
-        name_clean = room['name'].split('(')[0].strip()
+        name_clean = name.split('(')[0].strip()
         defaults = [name_clean] if name_clean else []
         
     # 2. DB 테이블 컬럼에 저장된 시작단어 파싱
