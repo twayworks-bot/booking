@@ -126,22 +126,36 @@
                                         {% set booking = calendar[active_room_id][date_str][slot] %}
                                         <td class="p-2 cell-height">
                                             {% if booking %}
-                                                <div class="booking-card shadow-sm border-start border-3 border-danger bg-danger bg-opacity-10 p-2 rounded">
-                                                    <div class="fw-bold text-dark text-truncate" title="{{ booking.user_name }}" style="font-size: 0.9rem;">
-                                                        <i class="bi bi-person-fill text-secondary me-1"></i>{{ booking.user_name }}
+                                                {% if booking.is_overlay %}
+                                                    <div class="booking-card shadow-sm border-start border-3 border-warning bg-warning bg-opacity-10 p-2 rounded text-start">
+                                                        <div class="fw-bold text-dark text-truncate" title="{{ booking.user_name }}" style="font-size: 0.85rem;">
+                                                            <span class="badge bg-warning text-dark me-1" style="font-size: 0.65rem;">카카오톡</span>{{ booking.user_name }}
+                                                        </div>
+                                                        <div class="text-muted text-truncate" title="{{ booking.purpose or '예약 목적 없음' }}" style="font-size: 0.75rem; margin-top: 2px;">
+                                                            <i class="bi bi-tag-fill text-muted me-1"></i>{{ booking.purpose }}
+                                                        </div>
+                                                        <div class="mt-2 text-end" style="height: 18px;">
+                                                            <span class="text-warning-emphasis" style="font-size: 0.7rem;"><i class="bi bi-link-45deg"></i>연동됨</span>
+                                                        </div>
                                                     </div>
-                                                    <div class="text-muted text-truncate" title="{{ booking.purpose or '예약 목적 없음' }}" style="font-size: 0.75rem; margin-top: 2px;">
-                                                        <i class="bi bi-tag-fill text-muted me-1"></i>{{ booking.purpose or '연습 및 사용' }}
+                                                {% else %}
+                                                    <div class="booking-card shadow-sm border-start border-3 border-danger bg-danger bg-opacity-10 p-2 rounded">
+                                                        <div class="fw-bold text-dark text-truncate" title="{{ booking.user_name }}" style="font-size: 0.9rem;">
+                                                            <i class="bi bi-person-fill text-secondary me-1"></i>{{ booking.user_name }}
+                                                        </div>
+                                                        <div class="text-muted text-truncate" title="{{ booking.purpose or '예약 목적 없음' }}" style="font-size: 0.75rem; margin-top: 2px;">
+                                                            <i class="bi bi-tag-fill text-muted me-1"></i>{{ booking.purpose or '연습 및 사용' }}
+                                                        </div>
+                                                        <div class="mt-2 text-end">
+                                                            <a href="{{ url_for('reserve.cancel', booking_id=booking.id) }}" 
+                                                               class="btn btn-sm btn-outline-danger py-0 px-1 border-0" 
+                                                               style="font-size: 0.75rem; border-radius: 4px;"
+                                                               title="예약 취소">
+                                                                <i class="bi bi-trash3-fill"></i>취소
+                                                            </a>
+                                                        </div>
                                                     </div>
-                                                    <div class="mt-2 text-end">
-                                                        <a href="{{ url_for('reserve.cancel', booking_id=booking.id) }}" 
-                                                           class="btn btn-sm btn-outline-danger py-0 px-1 border-0" 
-                                                           style="font-size: 0.75rem; border-radius: 4px;"
-                                                           title="예약 취소">
-                                                            <i class="bi bi-trash3-fill"></i>취소
-                                                        </a>
-                                                    </div>
-                                                </div>
+                                                {% endif %}
                                             {% else %}
                                                 <a href="{{ url_for('reserve.book', room_id=active_room_id, date=date_str, start_time=slot) }}" 
                                                    class="empty-slot-btn text-decoration-none d-block py-2 text-muted rounded border border-dashed text-center">

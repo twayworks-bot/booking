@@ -57,9 +57,49 @@
                                 <input type="text" name="name" id="name" class="form-control" placeholder="예: 대강당(비젼홀), 별관(미션홀)" required>
                                 <div class="form-text text-muted">예약 대상이 될 강단 및 예배실의 구체적인 명칭을 입력해 주세요.</div>
                             </div>
+                            <div class="mb-3">
+                                <label for="ics_prefix" class="form-label fw-bold text-secondary">카카오톡 연동 시작단어 (콤마 구분)</label>
+                                <input type="text" name="ics_prefix" id="ics_prefix" class="form-control" placeholder="예: 비젼홀, 대예배, 본당">
+                                <div class="form-text text-muted" style="font-size: 0.8rem;">카카오톡 일정 제목이 지정된 단어로 시작할 때 자동 연동됩니다. <strong>비어있으면 항상 기본 등록 단어들이 포함됩니다.</strong></div>
+                            </div>
                             <div class="d-grid">
                                 <button type="submit" class="btn btn-primary fw-bold">
                                     <i class="bi bi-plus-circle me-1"></i>강단 등록하기
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- 카카오톡 캘린더 연동 설정 카드 -->
+                <div class="card shadow border-0 mb-4">
+                    <div class="card-header bg-warning text-dark py-3">
+                        <h4 class="card-title mb-0 fs-5 fw-bold"><i class="bi bi-calendar-event-fill me-2"></i>카카오톡 캘린더 연동</h4>
+                    </div>
+                    <div class="card-body p-4">
+                        <form method="POST">
+                            <input type="hidden" name="action" value="update_ics">
+                            <div class="mb-3">
+                                <label for="kakao_icalendar" class="form-label fw-bold text-secondary">ICS 캘린더 URL</label>
+                                <input type="url" name="kakao_icalendar" id="kakao_icalendar" class="form-control" 
+                                       placeholder="{{ default_ics or 'http://example.com/calendar.ics' }}" 
+                                       value="{{ kakao_icalendar }}">
+                                <div class="form-text text-muted mt-2">
+                                    {% if not kakao_icalendar and default_ics %}
+                                        <span class="badge bg-info text-dark"><i class="bi bi-info-circle me-1"></i>기본 환경설정값 사용 중</span>
+                                        <div class="small text-truncate text-muted mt-1" title="{{ default_ics }}" style="max-width: 100%;">
+                                            기본 URL: <code>{{ default_ics }}</code>
+                                        </div>
+                                    {% elif kakao_icalendar %}
+                                        <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>사용자 지정 URL 사용 중</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary"><i class="bi bi-exclamation-circle me-1"></i>설정된 URL이 없습니다.</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-warning fw-bold text-dark">
+                                    <i class="bi bi-save me-1"></i>설정 저장하기
                                 </button>
                             </div>
                         </form>
@@ -90,6 +130,7 @@
                                         <tr>
                                             <th style="width: 100px;">강단 ID</th>
                                             <th class="text-start ps-4">강단 이름 (명칭)</th>
+                                            <th class="text-start ps-4">연동 시작단어 (Prefix)</th>
                                             <th style="width: 200px;">관리 기능</th>
                                         </tr>
                                     </thead>
@@ -99,6 +140,27 @@
                                                 <td class="fw-bold text-muted">{{ room.id }}</td>
                                                 <td class="text-start ps-4 fw-bold text-dark">
                                                     <i class="bi bi-geo-alt text-primary me-2"></i>{{ room.name }}
+                                                </td>
+                                                <td class="text-start ps-4">
+                                                    {% if room.ics_prefix %}
+                                                        {% for prefix in room.ics_prefix.split(',') %}
+                                                            <span class="badge bg-warning text-dark me-1" style="font-size: 0.75rem;">{{ prefix.strip() }}</span>
+                                                        {% endfor %}
+                                                        <span class="text-muted d-block mt-1" style="font-size: 0.7rem;"><i class="bi bi-info-circle me-1"></i>사용자 정의 단어 적용 중</span>
+                                                    {% else %}
+                                                        <span class="badge bg-secondary text-white me-1" style="font-size: 0.75rem;">기본 등록단어 항상 포함</span>
+                                                        <div class="text-muted mt-1" style="font-size: 0.7rem;">
+                                                            {% if room.name == "대강당(비젼홀)" %}
+                                                                기본값: 비젼홀, 비전홀, 비전횰
+                                                            {% elif room.name == "지하강당(드림홀)" %}
+                                                                기본값: 드림홀, 드림횰
+                                                            {% elif room.name == "별관(미션홀)" %}
+                                                                기본값: 별관5층, 별관오층, 별관5, 별관
+                                                            {% else %}
+                                                                기본값: {{ room.name.split('(')[0].strip() }}
+                                                            {% endif %}
+                                                        </div>
+                                                    {% endif %}
                                                 </td>
                                                 <td>
                                                     <button type="button" class="btn btn-sm btn-outline-primary me-1" 
@@ -120,13 +182,18 @@
                                                             <input type="hidden" name="action" value="update">
                                                             <input type="hidden" name="room_id" value="{{ room.id }}">
                                                             <div class="modal-header bg-primary text-white">
-                                                                <h5 class="modal-title fw-bold" id="editModalLabel{{ room.id }}"><i class="bi bi-pencil-square me-2"></i>강단 이름 수정</h5>
+                                                                <h5 class="modal-title fw-bold" id="editModalLabel{{ room.id }}"><i class="bi bi-pencil-square me-2"></i>강단 정보 수정</h5>
                                                                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                                                             </div>
                                                             <div class="modal-body text-start p-4">
                                                                 <div class="mb-3">
                                                                     <label for="roomName{{ room.id }}" class="form-label fw-bold text-secondary">강단 명칭</label>
                                                                     <input type="text" name="name" id="roomName{{ room.id }}" class="form-control" value="{{ room.name }}" required>
+                                                                </div>
+                                                                <div class="mb-3">
+                                                                    <label for="roomPrefix{{ room.id }}" class="form-label fw-bold text-secondary">카카오톡 연동 시작단어 (콤마 구분)</label>
+                                                                    <input type="text" name="ics_prefix" id="roomPrefix{{ room.id }}" class="form-control" value="{{ room.ics_prefix or '' }}" placeholder="예: 비젼홀, 대예배, 본당">
+                                                                    <div class="form-text text-muted" style="font-size: 0.8rem;">콤마(,)로 여러 단어를 구분해 등록할 수 있습니다. <strong>비어있는 경우 기본 연동 단어들이 항상 자동 적용됩니다.</strong></div>
                                                                 </div>
                                                             </div>
                                                             <div class="modal-footer">

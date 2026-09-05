@@ -23,11 +23,13 @@ def init_db(force_reinit=False):
     if force_reinit:
         c.execute('DROP TABLE IF EXISTS bookings')
         c.execute('DROP TABLE IF EXISTS rooms')
+        c.execute('DROP TABLE IF EXISTS settings')
         
     c.execute('''
         CREATE TABLE IF NOT EXISTS rooms (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL
+            name TEXT NOT NULL,
+            ics_prefix TEXT
         )
     ''');
     c.execute('''
@@ -44,12 +46,28 @@ def init_db(force_reinit=False):
         )
     ''')
     
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        )
+    ''')
+    
     # 만약 기존 DB에 purpose 컬럼이 없으면 추가하는 마이그레이션 (안전을 위함)
     try:
         c.execute('SELECT purpose FROM bookings LIMIT 1')
     except sqlite3.OperationalError:
         try:
             c.execute('ALTER TABLE bookings ADD COLUMN purpose TEXT')
+        except sqlite3.OperationalError:
+            pass
+
+    # 만약 기존 DB에 ics_prefix 컬럼이 없으면 추가하는 마이그레이션 (동적 시작단어 관리용)
+    try:
+        c.execute('SELECT ics_prefix FROM rooms LIMIT 1')
+    except sqlite3.OperationalError:
+        try:
+            c.execute('ALTER TABLE rooms ADD COLUMN ics_prefix TEXT')
         except sqlite3.OperationalError:
             pass
             
@@ -62,7 +80,17 @@ def init_db(force_reinit=False):
 
 def get_rooms():
     conn = get_db_connection()
-    rooms = [{'id': row['id'], 'name': row['name']} for row in conn.execute('SELECT * FROM rooms').fetchall()]
+    c = conn.cursor()
+    c.execute('SELECT * FROM rooms')
+    rows = c.fetchall()
+    rooms = []
+    for row in rows:
+        r = {'id': row['id'], 'name': row['name']}
+        if 'ics_prefix' in row.keys():
+            r['ics_prefix'] = row['ics_prefix']
+        else:
+            r['ics_prefix'] = None
+        rooms.append(r)
     conn.close()
     return rooms
 
@@ -77,7 +105,7 @@ def get_bookings():
 
 def get_recent_bookings():
     conn = get_db_connection()
-    one_month_ago = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+    three_months_ago = (datetime.now() - timedelta(days=90)).strftime("%Y-%m-%d")
     c = conn.cursor()
     c.execute('''
         SELECT room_id, date, MIN(time_slot) as start_time, MAX(time_slot) as end_time, 
@@ -86,7 +114,7 @@ def get_recent_bookings():
         WHERE date >= ?
         GROUP BY group_id
         ORDER BY date, start_time
-    ''', (one_month_ago,))
+    ''', (three_months_ago,))
     bookings = [{'room_id': row['room_id'], 'date': row['date'], 
                  'start_time': row['start_time'], 'end_time': row['end_time'], 
                  'user_name': row['user_name'], 'group_id': row['group_id'],
@@ -129,17 +157,17 @@ def cancel_booking(booking_id, password):
     return True, "예약이 취소되었습니다."
 
 # --- 신규 강단 관리 함수 ---
-def add_room(name):
+def add_room(name, ics_prefix=None):
     conn = get_db_connection()
     c = conn.cursor()
-    c.execute('INSERT INTO rooms (name) VALUES (?)', (name,))
+    c.execute('INSERT INTO rooms (name, ics_prefix) VALUES (?, ?)', (name, ics_prefix))
     conn.commit()
     conn.close()
 
-def update_room(room_id, name):
+def update_room(room_id, name, ics_prefix=None):
     conn = get_db_connection()
     c = conn.cursor()
-    c.execute('UPDATE rooms SET name = ? WHERE id = ?', (name, room_id))
+    c.execute('UPDATE rooms SET name = ?, ics_prefix = ? WHERE id = ?', (name, ics_prefix, room_id))
     conn.commit()
     conn.close()
 
@@ -149,5 +177,21 @@ def delete_room(room_id):
     # 강단 삭제 시 관련 예약도 연쇄 삭제
     c.execute('DELETE FROM bookings WHERE room_id = ?', (room_id,))
     c.execute('DELETE FROM rooms WHERE id = ?', (room_id,))
+    conn.commit()
+    conn.close()
+
+# --- 환경설정(Settings) 관리 함수 ---
+def get_setting(key, default=None):
+    conn = get_db_connection()
+    row = conn.execute('SELECT value FROM settings WHERE key = ?', (key,)).fetchone()
+    conn.close()
+    if row:
+        return row['value']
+    return default
+
+def set_setting(key, value):
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', (key, value))
     conn.commit()
     conn.close()
