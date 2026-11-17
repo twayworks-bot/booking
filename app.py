@@ -7,7 +7,7 @@ import json
 import requests
 import urllib.parse
 
-# .env 파일 수동 로드
+# .env 파일 수동 로드 (시스템/컨테이너 환경변수가 이미 존재할 경우 우선권 유지)
 env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
 if os.path.exists(env_path):
     with open(env_path, 'r', encoding='utf-8') as f:
@@ -15,7 +15,25 @@ if os.path.exists(env_path):
             line = line.strip()
             if line and not line.startswith('#') and '=' in line:
                 k, v = line.split('=', 1)
-                os.environ[k.strip()] = v.strip()
+                os.environ.setdefault(k.strip(), v.strip())
+
+def normalize_prefix(prefix_val):
+    """
+    환경변수 DEFAULT_PREFIX 값을 정규화하여 반환합니다.
+    - None인 경우 기본값 '/reserve' 반환
+    - 빈 문자열('') 또는 '/'인 경우 '' (루트 경로) 반환
+    - 그 외의 경우 선행 '/'를 보장하고 후행 '/'를 제거하여 반환 (예: 'booking/' -> '/booking')
+    """
+    if prefix_val is None:
+        return '/reserve'
+    p = prefix_val.strip()
+    if not p or p == '/':
+        return ''
+    if not p.startswith('/'):
+        p = '/' + p
+    return p.rstrip('/')
+
+DEFAULT_PREFIX = normalize_prefix(os.environ.get('DEFAULT_PREFIX', '/reserve'))
 
 from database import (
     init_db, get_rooms, get_bookings, book_room, cancel_booking, 
@@ -23,7 +41,8 @@ from database import (
     get_setting, set_setting
 )
 
-app = Flask(__name__)
+static_url_path = f"{DEFAULT_PREFIX}/static" if DEFAULT_PREFIX else "/static"
+app = Flask(__name__, static_url_path=static_url_path)
 app.secret_key = 'your-secret-key'
 bcrypt = Bcrypt(app)
 
@@ -458,11 +477,12 @@ def inject_user_status():
     return {
         'is_logged_in': is_logged_in,
         'is_manager': is_manager,
-        'current_user': user_data
+        'current_user': user_data,
+        'default_prefix': DEFAULT_PREFIX
     }
 
-# 블루프린트 설정 (prefix: /reserve)
-reserve_bp = Blueprint('reserve', __name__, url_prefix='/reserve')
+# 블루프린트 설정 (환경변수 DEFAULT_PREFIX 참조, 기본값: /reserve)
+reserve_bp = Blueprint('reserve', __name__, url_prefix=DEFAULT_PREFIX if DEFAULT_PREFIX else None)
 
 # 주간 캘린더 날짜 생성 (페이지네이션 지원)
 def generate_week_dates(week_offset=0):
@@ -684,18 +704,27 @@ def admin_rooms():
                            kakao_icalendar=kakao_icalendar, 
                            default_ics=default_ics)
 
-# 헬스체크 API 엔드포인트 추가 (도커 컨테이너 검사용)
-@app.route('/reserve/api/status')
+# 헬스체크 API 엔드포인트 추가 (도커 컨테이너 검사용 - DEFAULT_PREFIX 연동)
+@reserve_bp.route('/api/status')
 def health_check():
-    return {'status': 'healthy'}, 200
+    return {'status': 'healthy', 'prefix': DEFAULT_PREFIX}, 200
 
 # 블루프린트 등록
 app.register_blueprint(reserve_bp)
 
-# 기본 주소 진입 시 예약 메인 화면으로 리다이렉트
-@app.route('/')
-def home():
-    return redirect(url_for('reserve.index'))
+# DEFAULT_PREFIX가 설정되어 있을 때 루트('/') 리다이렉트 및 루트 레벨 헬스체크/정적파일 호환 라우트 제공
+if DEFAULT_PREFIX:
+    @app.route('/')
+    def home():
+        return redirect(url_for('reserve.index'))
+
+    @app.route('/api/status')
+    def root_health_check():
+        return {'status': 'healthy', 'prefix': DEFAULT_PREFIX}, 200
+
+    @app.route('/static/<path:filename>')
+    def root_static(filename):
+        return app.send_static_file(filename)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)

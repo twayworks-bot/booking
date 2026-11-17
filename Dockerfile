@@ -4,6 +4,8 @@ FROM python:3.10-slim
 # 2. 시스템 의존성 패키지 업데이트 및 환경변수 설정
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+# 웹앱의 기본 Base URL Subpath(Prefix) 환경설정값 정의 (컨테이너 기동 시 -e DEFAULT_PREFIX=... 로 변경 가능)
+ENV DEFAULT_PREFIX=/reserve
 # 카카오톡 캘린더 연동을 위한 기본 ics calendar 엔드포인트 환경설정값 정의 (.env 대용 및 컨테이너 기동 시 오버라이드 가능)
 ENV KAKAO_ICALENDAR=https://raw.githubusercontent.com/example/mock/main/calendar.ics
 
@@ -23,9 +25,10 @@ VOLUME ["/app/data"]
 # 7. Gunicorn 실행을 위한 수신 포트 지정 (5000번)
 EXPOSE 5000
 
-# 7. 헬스체크 루틴 추가 (요청하신 조건 준수)
+# 8. 컨테이너 헬스체크 정의 (요청한 사양에 맞춘 Prefix 경로 연동)
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=5s \
-    CMD python -c "import requests; requests.get('http://localhost:5000/reserve/api/status')"
+    CMD python -c "import os, requests; prefix = os.getenv('DEFAULT_PREFIX', ''); requests.get(f'http://localhost:5000{prefix}/api/status')"
 
-# 8. 컨테이너 기동 시 실 구동 커맨드 설정 (요청하신 Gunicorn 커맨드 준수)
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--log-level", "debug", "--access-logfile", "-", "--error-logfile", "-", "--capture-output", "app:app"]
+# 9. Gunicorn 운영서버로 기동 (요청한 사양에 맞춘 최적화 워커 및 디버깅 로그 옵션)
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--log-level", "debug", "--access-logfile", "-", "--error-logfile", "-", "--capture-output", "main:app"]
+

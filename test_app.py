@@ -357,5 +357,49 @@ END:VCALENDAR"""
         # 과거 예약자는 리포트에서 필터링되어 출력되지 않아야 함
         self.assertNotIn('과거 예약자', content)
 
+    def test_default_prefix_normalization_and_dynamic_subpath(self):
+        """환경변수 DEFAULT_PREFIX 정규화 및 사용자 지정 subpath 동적 라우팅/헬스체크 검증"""
+        import os
+        import importlib
+        import app as app_module
+        from app import normalize_prefix
+
+        # 1. normalize_prefix 단위 검증
+        self.assertEqual(normalize_prefix(None), '/reserve')
+        self.assertEqual(normalize_prefix('/reserve'), '/reserve')
+        self.assertEqual(normalize_prefix('booking/'), '/booking')
+        self.assertEqual(normalize_prefix('/custom/subpath/'), '/custom/subpath')
+        self.assertEqual(normalize_prefix(''), '')
+        self.assertEqual(normalize_prefix('/'), '')
+
+        # 2. DEFAULT_PREFIX를 '/pulpit'으로 변경 후 앱 리로드 시 동적 subpath 작동 검증
+        orig_prefix = os.environ.get('DEFAULT_PREFIX')
+        try:
+            os.environ['DEFAULT_PREFIX'] = '/pulpit'
+            importlib.reload(app_module)
+            app_module.app.config['TESTING'] = True
+            custom_client = app_module.app.test_client()
+
+            # 루트 접속 시 /pulpit/ 로 리다이렉트
+            res_root = custom_client.get('/')
+            self.assertEqual(res_root.status_code, 302)
+            self.assertTrue(res_root.location.endswith('/pulpit/'))
+
+            # /pulpit/ 메인 페이지 정상 로드
+            res_index = custom_client.get('/pulpit/')
+            self.assertEqual(res_index.status_code, 200)
+            self.assertIn('/pulpit/book', res_index.data.decode('utf-8'))
+
+            # /pulpit/api/status 헬스체크 정상 응답
+            res_health = custom_client.get('/pulpit/api/status')
+            self.assertEqual(res_health.status_code, 200)
+            self.assertIn('healthy', res_health.data.decode('utf-8'))
+        finally:
+            if orig_prefix is not None:
+                os.environ['DEFAULT_PREFIX'] = orig_prefix
+            else:
+                os.environ['DEFAULT_PREFIX'] = '/reserve'
+            importlib.reload(app_module)
+
 if __name__ == '__main__':
     unittest.main()
